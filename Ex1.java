@@ -38,32 +38,18 @@ public class Ex1 {
             Document doc = db.parse(f);
             doc.getDocumentElement().normalize();
             HashMap<String,ArrayList<String>> variables = new HashMap<>();
-
+            HashMap<String,ArrayList<String>> definitions = new HashMap<>();
 
             NodeList vars = doc.getElementsByTagName("VARIABLE");
-            for(int i = 0; i < vars.getLength(); i++){
-                ArrayList<String> outcomes = new ArrayList<>();
-                Node v = vars.item(i);
-                String n = "";
-                if(v.getNodeType() == Node.ELEMENT_NODE){
-                    NodeList v_details = v.getChildNodes();
-                    for (int j = 0; j < v_details.getLength(); j++){
-                        Node d = v_details.item(j);
-                        if (d.getNodeType() == Node.ELEMENT_NODE){
-                            Element d_element = (Element)d;
-                            if (d_element.getTagName() .equals("NAME")){
-                                n = d_element.getTextContent();
-                            }
-                            else{
-                                outcomes.add(d_element.getTextContent());
-                            }
-                        }
-                    }
-                    variables.put(n,outcomes);
-                }
-            }
-
             NodeList defs = doc.getElementsByTagName("DEFINITION");
+
+            variables = turn_to_hash(vars,"NAME");
+            definitions = turn_to_hash(defs, "FOR");
+
+            System.out.print(variables);
+            System.out.print("\n");
+            System.out.print(definitions);
+
 
         } catch (ParserConfigurationException e) {
             e.printStackTrace();
@@ -74,5 +60,32 @@ public class Ex1 {
         }
 
 
+    }
+
+
+    public static HashMap<String,ArrayList<String>> turn_to_hash(NodeList l, String tag){
+        HashMap<String,ArrayList<String>> variables = new HashMap<>();
+        for(int i = 0; i < l.getLength(); i++){
+            ArrayList<String> outcomes = new ArrayList<>();
+            Node v = l.item(i);
+            String n = "";
+            if(v.getNodeType() == Node.ELEMENT_NODE){
+                NodeList v_details = v.getChildNodes();
+                for (int j = 0; j < v_details.getLength(); j++){
+                    Node d = v_details.item(j);
+                    if (d.getNodeType() == Node.ELEMENT_NODE){
+                        Element d_element = (Element)d;
+                        if (d_element.getTagName() .equals(tag)){
+                            n = d_element.getTextContent();
+                        }
+                        else{
+                            outcomes.add(d_element.getTextContent());
+                        }
+                    }
+                }
+                variables.put(n,outcomes);
+            }
+        }
+        return variables;
     }
 }
