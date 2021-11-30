@@ -14,9 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Scanner;
+import java.util.*;
 
 public class Ex1 {
     public static void main(String[] args) {
@@ -50,7 +48,15 @@ public class Ex1 {
             System.out.print("\n");
             System.out.print(definitions);
 
-
+            for(int i = 1; i < lines.length; i++){
+                System.out.print("\n");
+                if (lines[i].charAt(1) == 'P'){
+                    continue;
+                }
+                else{
+                    BayesBall(definitions,lines[i]);
+                }
+            }
         } catch (ParserConfigurationException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -62,6 +68,37 @@ public class Ex1 {
 
     }
 
+    public static boolean BayesBall(HashMap<String,ArrayList<String>> net, String q){
+        ArrayList<String> evidence = new ArrayList<>();
+        String[] splited_q = q.split("\\|");
+        if(splited_q.length == 2){
+            String e = splited_q[1];
+            String[] given = e.split("\\,");
+            for (String s : given) {
+                evidence.add(s.split("\\=")[0]);
+            }
+        }
+        String vars = splited_q[0];
+        String start = vars.split("\\-")[0];
+        String finish = vars.split("\\-")[1];
+
+
+
+
+        return true;
+    }
+
+    public static boolean BayesBallAlgo(HashMap<String,ArrayList<String>> net,ArrayList<String> evidence, String start, String finish){
+        for(Map.Entry cpt: net.entrySet()){
+            if (cpt.getKey() == finish){
+                return true;
+            }
+            if (net.get(cpt.getKey()).contains(start) && !evidence.contains(cpt.getKey())){
+                BayesBallAlgo(net,evidence,(String) cpt.getKey(),finish);
+            }
+
+        }
+    }
 
     public static HashMap<String,ArrayList<String>> turn_to_hash(NodeList l, String tag){
         HashMap<String,ArrayList<String>> variables = new HashMap<>();
