@@ -54,7 +54,9 @@ public class Ex1 {
                     continue;
                 }
                 else{
-                    BayesBall(definitions,lines[i]);
+                    System.out.print(lines[i]);
+                    System.out.print("\n");
+                    System.out.print(BayesBall(definitions,lines[i]));
                 }
             }
         } catch (ParserConfigurationException e) {
@@ -78,26 +80,64 @@ public class Ex1 {
                 evidence.add(s.split("\\=")[0]);
             }
         }
-        String vars = splited_q[0];
+        String vars = splited_q[0].substring(1);
         String start = vars.split("\\-")[0];
         String finish = vars.split("\\-")[1];
 
 
 
 
-        return true;
+
+        return BayesBallAlgo(net,evidence,start,finish, "all",null);
     }
 
-    public static boolean BayesBallAlgo(HashMap<String,ArrayList<String>> net,ArrayList<String> evidence, String start, String finish){
-        for(Map.Entry cpt: net.entrySet()){
-            if (cpt.getKey() == finish){
-                return true;
+    public static boolean BayesBallAlgo(HashMap<String,ArrayList<String>> net,ArrayList<String> evidence, String start, String finish, String could_go, String came_from){
+        System.out.print("NEW CALL");
+        System.out.print("\n");
+        System.out.print("EVIDENCE: " + evidence);
+        System.out.print("\n");
+        System.out.print("START: " + start);
+        System.out.print("\n");
+        System.out.print("FINISH: " + finish);
+        System.out.print("\n");
+        System.out.print("COULD GO TO : " + could_go);
+        System.out.print("\n");
+        for(Map.Entry var: net.entrySet()){
+            System.out.print("CURRENT KEY: " + var.getKey());
+            System.out.print("\n");
+            if (Objects.equals(start, finish)){
+                System.out.print("FOUND THEY ARE NOT INDEPENDENT");
+                return false;
             }
-            if (net.get(cpt.getKey()).contains(start) && !evidence.contains(cpt.getKey())){
-                BayesBallAlgo(net,evidence,(String) cpt.getKey(),finish);
+            System.out.print("ARRAY LIST OF CURRENT KEY : " + net.get(var.getKey()));
+            System.out.print("\n");
+            System.out.print("DOES THE CURRENT KEY CONTAIN THE START? : " + net.get(var.getKey()).contains(start));
+            System.out.print("\n");
+            if (net.get(var.getKey()).contains(start) && !evidence.contains(start) && !Objects.equals(could_go, "parent")){
+                System.out.print("GOING TO CHILD");
+                System.out.print("\n");
+                if (evidence.contains((String) var.getKey())){
+                    return BayesBallAlgo(net,evidence,(String) var.getKey(),finish,"parent",start);
+                }
+                else {
+                    return BayesBallAlgo(net,evidence,(String) var.getKey(),finish,"child",start);
+                }
+            }
+            if (!Objects.equals(could_go, "child")){
+                for(int i = 0; i < net.get(start).size(); i++){
+                    System.out.print("TRYING TO GO TO PARENT");
+                    System.out.print("\n");
+                    if (net.get(start).get(i).length() == 1 && !evidence.contains(net.get(start).get(i))){
+                        System.out.print("GOING TO PARENT: " + net.get(start).get(i));
+                        System.out.print("\n");
+                        return BayesBallAlgo(net,evidence,net.get(start).get(i),finish,"all",start);
+                    }
+                }
             }
 
         }
+        //return BayesBallAlgo(net,evidence,came_from,finish,"child",start);
+        return true;
     }
 
     public static HashMap<String,ArrayList<String>> turn_to_hash(NodeList l, String tag){
