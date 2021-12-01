@@ -20,11 +20,10 @@ public class Ex1 {
     public static void main(String[] args) {
         String qs = "";
         try {
-            qs = Files.readString(Paths.get("input.txt"));
+            qs = Files.readString(Paths.get("input1.txt"));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println(qs);
         String[] lines = qs.split("\r");
         String net = lines[0];
 
@@ -44,12 +43,8 @@ public class Ex1 {
             variables = turn_to_hash(vars,"NAME");
             definitions = turn_to_hash(defs, "FOR");
 
-            System.out.print(variables);
-            System.out.print("\n");
-            System.out.print(definitions);
 
             for(int i = 1; i < lines.length; i++){
-                System.out.print("\n");
                 if (lines[i].charAt(1) == 'P'){
                     continue;
                 }
@@ -57,6 +52,7 @@ public class Ex1 {
                     boolean ans = BayesBall(definitions,lines[i]);
                     if (ans){System.out.print("yes");}
                     else{System.out.print("no");}
+                    System.out.print("\n");
                 }
             }
         } catch (ParserConfigurationException e) {
@@ -101,42 +97,26 @@ public class Ex1 {
            String v = q.remove();
            String state = states.remove();
            explored.add(v);
-           //System.out.print("CURRENT V: " + v);
-           //System.out.print("\n");
-           //System.out.print("CURRENT STATE: " + state);
-           //System.out.print("\n");
            if (Objects.equals(v, finish)){
                return false;
            }
            for (Map.Entry var: net.entrySet()){
-               //System.out.print("CURRENT KEY: " + var.getKey());
-               //System.out.print("\n");
                if (net.get(var.getKey()).contains(v) && !evidence.contains(v) && !Objects.equals(state, "parent")){
                    if (!q.contains(var.getKey()) && !explored.contains(var.getKey())){
-                       //System.out.print("CURRENT KEY: " + var.getKey() + " IS ADDED TO Q");
-                       //System.out.print("\n");
                        q.add((String) var.getKey());
                        if (evidence.contains((String) var.getKey())){
                            states.add("parent");
-                           //System.out.print("PARENT STATE");
-                           //System.out.print("\n");
                        }
                        else {
                            states.add("child");
-                           //System.out.print("CHILD STATE");
-                           //System.out.print("\n");
                        }
                    }
                }
 
            }
             if (!Objects.equals(state, "child")){
-                //System.out.print("LOOKING FOR PARENTS");
-                //System.out.print("\n");
                 for(int i = 0; i < net.get(v).size(); i++){
                     if (net.containsKey(net.get(v).get(i)) && !evidence.contains(net.get(v).get(i)) && Collections.frequency(explored,net.get(v).get(i)) != 2){
-                        //System.out.print("PARENT ADDED TO THE Q: " + net.get(v).get(i));
-                        //System.out.print("\n");
                         explored.add(net.get(v).get(i));
                         q.add(net.get(v).get(i));
                         states.add("all");
