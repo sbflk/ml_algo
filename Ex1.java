@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Ex1 {
     public static void main(String[] args) {
@@ -43,6 +44,7 @@ public class Ex1 {
 
             variables = turn_to_hash(vars,"NAME");
             definitions = turn_to_hash(defs, "FOR");
+
 
 
             for(int i = 1; i < lines.length; i++){
@@ -190,15 +192,132 @@ public class Ex1 {
 
         // dealing with hidden variables
 
+
         for (String h : hidden){
+            HashMap<String,HashMap<String,ArrayList<String>>> bool_table = new HashMap<>(create_bool_table(variable_net,factors));
             ArrayList<String> h_factor = factors.get(h);
+            ArrayList<ArrayList<String>> factor_by_size = new ArrayList<>();//factors need to be joined from smallest to biggest
+            ArrayList<String> keys_inside = new ArrayList<>();
+            factor_by_size.add(h_factor);
+            keys_inside.add(h);
             for (Map.Entry var:net.entrySet()){
                 if (net.get(var.getKey()).contains(h)){//h is a parent of var
                     ArrayList<String> var_factor = factors.get(var.getKey());
+                    Boolean added = false;
+                    int size = factor_by_size.size();
+                    for (int i = 0; i < size;i++){
+                        if (factor_by_size.get(i).size() == var_factor.size()){
+                            int var_sum = 0;
+                            ArrayList<String> keys = new ArrayList<>(bool_table.get(var.getKey()).keySet());
+                            for (int j = 0; j < keys.size(); j++){
+                                var_sum += (int) keys.get(j).charAt(0);
+                            }
+                            int var1_sum = 0;
+                            ArrayList<String> keys1 = new ArrayList<>(bool_table.get(keys_inside.get(i)).keySet());
+                            for (int j = 0; j < keys1.size(); j++){
+                                var1_sum += (int) keys1.get(j).charAt(0);
+                            }
+                            if (var_sum > var1_sum){
+                                factor_by_size.add(i+1,var_factor);
+                                keys_inside.add(i+1, (String) var.getKey());
+                            }
+                            else {
+                                factor_by_size.add(i,var_factor);
+                                keys_inside.add(i, (String) var.getKey());
+                            }
+                            added = true;
+
+                        }
+                        if (factor_by_size.get(i).size() > var_factor.size()){
+                            factor_by_size.add(i,var_factor);
+                            keys_inside.add(i, (String) var.getKey());
+                        }
+                    }
+                    if (!added){
+                        factor_by_size.add(factor_by_size.size()-1,var_factor);
+                    }
+                }
+            }
+
+            // joining factors
+            ArrayList<String> cpt = new ArrayList<>(factor_by_size).get(0);
+            factor_by_size.remove(0);
+            String cpt_key = keys_inside.remove(0);
+            if (factor_by_size.size() > 0){
+                while (factor_by_size.size() != 0){
+                    ArrayList<String> cpt1 = new ArrayList<>(factor_by_size).get(0);
+                    factor_by_size.remove(0);
+                    String cpt1_key = keys_inside.remove(0);
+                    cpt = new ArrayList<>(join(cpt,cpt1,bool_table,cpt_key,cpt1_key));
+                    cpt_key = cpt1_key;
+                }
+            }
+
+            // eliminate
+
+            for (int i = 0; i < cpt.size(); i++){
+
+            }
+
+
+
+
+        }
+        return 1;
+    }
+
+    public static ArrayList<String> join(ArrayList<String> cpt, ArrayList<String> cpt1, HashMap<String,HashMap<String,ArrayList<String>>> bool_table, String cpt_key, String cpt1_key){
+        ArrayList<String> cpt_keys = new ArrayList<>(bool_table.get(cpt_key).keySet());
+        ArrayList<String> cpt1_keys = new ArrayList<>(bool_table.get(cpt1_key).keySet());
+        ArrayList<String> shared = new ArrayList<>(cpt_keys.stream().filter(cpt1_keys::contains).collect(Collectors.toList()));
+        for (int i = 0; i < cpt.size(); i++){
+            for (int j = 0; j < cpt1.size(); j++){
+                boolean should_join = true;
+                for (int l = 0; l < shared.size(); l++){
+                    if (!Objects.equals(bool_table.get(cpt_key).get(shared.get(l)).get(i), bool_table.get(cpt1_key).get(shared.get(l)).get(j))){
+                        should_join = false;
+                    }
+                }
+                if(should_join){
+                    cpt1.set(j,String.valueOf(Integer.parseInt(cpt1.get(j)) * Integer.parseInt(cpt.get(i))));
                 }
             }
         }
-        return 1;
+    }
+
+
+    public static HashMap<String,HashMap<String,ArrayList<String>>> create_bool_table(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net){
+        HashMap<String,HashMap<String,ArrayList<String>>> bool_table = new HashMap<>();
+        for (Map.Entry var: net.entrySet()){
+            HashMap<String,ArrayList<String>> var_bool_table = new HashMap<>();
+            ArrayList<String> parents = new ArrayList<>(net.get(var.getKey()));
+            ArrayList<String> values = new ArrayList<>(Arrays.asList(parents.remove(parents.size()-1).split(" ")));
+            int table_size = values.size();
+            for (int i = 0; i < parents.size(); i++){
+                ArrayList<String> parent_bool_values = new ArrayList<>();
+                double bool_group_size = Math.pow(2, parents.size()-i);
+                ArrayList<String> bool_options = new ArrayList<>(variable_net.get(parents.get(i)));
+                String current_bool_value = bool_options.get(0);
+                for(int j = 0; j < table_size; j++){
+                    if (j != 0 && j%bool_group_size == 0){
+                        current_bool_value = bool_options.get((int)(j/bool_group_size)%bool_options.size());
+                    }
+                    parent_bool_values.add(current_bool_value);
+                }
+                var_bool_table.put(parents.get(i), parent_bool_values);
+            }
+            ArrayList<String> var_bool_values = new ArrayList<>();
+            ArrayList<String> bool_options = new ArrayList<>(variable_net.get(var.getKey()));
+            String current_bool_value = bool_options.get(0);
+            var_bool_values.add(current_bool_value);
+            for (int j = 1; j < table_size; j++){
+                current_bool_value = bool_options.get(j%bool_options.size());
+                var_bool_values.add(current_bool_value);
+            }
+            var_bool_table.put((String) var.getKey(), var_bool_values);
+            bool_table.put((String) var.getKey(), var_bool_table);
+        }
+        return bool_table;
     }
 
 
