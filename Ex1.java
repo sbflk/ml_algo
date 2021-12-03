@@ -138,15 +138,23 @@ public class Ex1 {
     }
 
 
-    public static float VariableElimination(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net,ArrayList<String> e, String query, ArrayList<String> hidden){
+    public static float VariableElimination(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net1,ArrayList<String> e, String query, ArrayList<String> hidden){
+        HashMap<String,ArrayList<String>> net = new HashMap<>(copy(net1));
         HashMap<String,ArrayList<String>> factors = new HashMap<>();
         HashMap<String,String> evidence = new HashMap<>();
         ArrayList<String> hidden_done = new ArrayList<>();
+        ArrayList<String> eliminated_cpt = null;
+        String cpt_key = "";
+        HashMap<String,HashMap<String,ArrayList<String>>> bool_table = null;
         for(String s : e){
             String[] splited = s.split("=");
             evidence.put(splited[0],splited[1]);
         }
+        System.out.print("STARTING NET: " + net);
+        System.out.print("\n");
         for (Map.Entry var:net.entrySet()){
+            System.out.print("CURRENT KEY: " + var.getKey());
+            System.out.print("\n");
             ArrayList<String> cpt = net.get(var.getKey());
             cpt = new ArrayList<>(Arrays.asList(cpt.get(cpt.size() - 1).split(" ")));
             ArrayList<String> bool_options = variable_net.get(var.getKey());
@@ -199,7 +207,7 @@ public class Ex1 {
         for (String h : hidden){
             System.out.print("DEALING WITH HIDDEN : " + h);
             System.out.print("\n");
-            HashMap<String,HashMap<String,ArrayList<String>>> bool_table = new HashMap<>(create_bool_table(variable_net,net,evidence,hidden_done));
+            bool_table = new HashMap<>(create_bool_table(variable_net,net,evidence,hidden_done));
             ArrayList<String> h_factor = factors.get(h);
             ArrayList<ArrayList<String>> factor_by_size = new ArrayList<>();//factors need to be joined from smallest to biggest
             ArrayList<String> keys_inside = new ArrayList<>();
@@ -253,7 +261,7 @@ public class Ex1 {
             // joining factors
             ArrayList<String> cpt = new ArrayList<>(factor_by_size).get(0);
             factor_by_size.remove(0);
-            String cpt_key = keys_inside.remove(0);
+            cpt_key = keys_inside.remove(0);
             System.out.print("CPT KEY: " + cpt_key);
             System.out.print("\n");
             if (factor_by_size.size() > 0){
@@ -277,7 +285,7 @@ public class Ex1 {
             System.out.print("CPT BOOL TABLE: " + bool_table.get(cpt_key));
             System.out.print("\n");
             int parents_number = bool_table.get(cpt_key).size()-1;
-            ArrayList<String> eliminated_cpt = new ArrayList<String>();
+            eliminated_cpt = new ArrayList<>();
             double current_sum = 0;
             int bool_options = variable_net.get(cpt_key).size();
             System.out.print("AMOUNT OF BOOL OPTIONS: " + bool_options);
@@ -304,18 +312,33 @@ public class Ex1 {
             System.out.print("\n");
             System.out.print("ELIMINATED CPT String: " + eliminated_cpt_string);
             System.out.print("\n");
-            System.out.print("ELIMINATED CPT String EXAMPLE: " + net.get(h).get(net.get(h).size()-1));
-            System.out.print("\n");
             net.get(h).set(net.get(h).size()-1, eliminated_cpt_string);
             factors.put(h,eliminated_cpt);
+            ArrayList<String> one_val_factors = new ArrayList<>();
+            for (Map.Entry k: factors.entrySet()){
+                if (factors.get(k.getKey()).size() == 1){
+                    System.out.print("REMOVING FACTOR: " + factors.get(k.getKey()));
+                    System.out.print("\n");
+                    one_val_factors.add((String) k.getKey());
+                }
+            }
+            System.out.print("ONE VAL FACTORS " + one_val_factors);
+            System.out.print("\n");
+            factors.keySet().removeAll(one_val_factors);
+            net.keySet().removeAll(one_val_factors);
+            hidden.removeAll(one_val_factors);
             System.out.print("NET AFTER: " + net);
+            System.out.print("\n");
+            System.out.print("FACTORS AFTER: " + factors);
             System.out.print("\n");
             hidden_done.add(h);
         }
-
-
+        System.out.print("QUERY: " + query);
+        System.out.print("\n");
+        ArrayList<String> final_factor = new ArrayList<>(join(factors.get(query.split("=")[0]),eliminated_cpt,bool_table, query.split("=")[0], cpt_key));
         // normalize
-
+        System.out.print("FINAL FACTOR: " + final_factor);
+        System.out.print("\n");
 
         return 1;
     }
@@ -428,5 +451,15 @@ public class Ex1 {
             }
         }
         return variables;
+    }
+
+
+    public static HashMap<String,ArrayList<String>> copy(HashMap<String,ArrayList<String>> m){
+        HashMap<String,ArrayList<String>> ret = new HashMap<>();
+
+        for(Map.Entry<String,ArrayList<String>> var:m.entrySet()){
+            ret.put(var.getKey(),new ArrayList<>(var.getValue()));
+        }
+        return ret;
     }
 }
