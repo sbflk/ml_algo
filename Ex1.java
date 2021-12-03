@@ -141,6 +141,7 @@ public class Ex1 {
     public static float VariableElimination(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net,ArrayList<String> e, String query, ArrayList<String> hidden){
         HashMap<String,ArrayList<String>> factors = new HashMap<>();
         HashMap<String,String> evidence = new HashMap<>();
+        ArrayList<String> hidden_done = new ArrayList<>();
         for(String s : e){
             String[] splited = s.split("=");
             evidence.put(splited[0],splited[1]);
@@ -198,7 +199,7 @@ public class Ex1 {
         for (String h : hidden){
             System.out.print("DEALING WITH HIDDEN : " + h);
             System.out.print("\n");
-            HashMap<String,HashMap<String,ArrayList<String>>> bool_table = new HashMap<>(create_bool_table(variable_net,net,evidence));
+            HashMap<String,HashMap<String,ArrayList<String>>> bool_table = new HashMap<>(create_bool_table(variable_net,net,evidence,hidden_done));
             ArrayList<String> h_factor = factors.get(h);
             ArrayList<ArrayList<String>> factor_by_size = new ArrayList<>();//factors need to be joined from smallest to biggest
             ArrayList<String> keys_inside = new ArrayList<>();
@@ -299,15 +300,17 @@ public class Ex1 {
                 eliminated_cpt_string = eliminated_cpt_string.concat(s + " ");
             }
             eliminated_cpt_string = eliminated_cpt_string.substring(0,eliminated_cpt_string.length()-1);
-            System.out.print("NET BEFORE: " + net.get(h));
+            System.out.print("NET: " + net);
             System.out.print("\n");
             System.out.print("ELIMINATED CPT String: " + eliminated_cpt_string);
             System.out.print("\n");
             System.out.print("ELIMINATED CPT String EXAMPLE: " + net.get(h).get(net.get(h).size()-1));
             System.out.print("\n");
-            //net.get(h).set(net.get(h).size()-1, eliminated_cpt_string);
-            System.out.print("NET AFTER: " + net.get(h));
+            net.get(h).set(net.get(h).size()-1, eliminated_cpt_string);
+            factors.put(h,eliminated_cpt);
+            System.out.print("NET AFTER: " + net);
             System.out.print("\n");
+            hidden_done.add(h);
         }
 
 
@@ -350,7 +353,7 @@ public class Ex1 {
     }
 
 
-    public static HashMap<String,HashMap<String,ArrayList<String>>> create_bool_table(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net,HashMap<String,String> evidence ){
+    public static HashMap<String,HashMap<String,ArrayList<String>>> create_bool_table(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net,HashMap<String,String> evidence, ArrayList<String> hidden_done){
         HashMap<String,HashMap<String,ArrayList<String>>> bool_table = new HashMap<>();
         //System.out.print("VARIABLE NET: " + variable_net);
         //System.out.print("\n");
@@ -365,7 +368,7 @@ public class Ex1 {
                 if (!evidence.containsKey(parents.get(i))){
                     ArrayList<String> parent_bool_values = new ArrayList<>();
                     double bool_group_size;
-                    if (evidence.containsKey(var.getKey())){
+                    if (evidence.containsKey(var.getKey()) || hidden_done.contains(var.getKey())){
                         bool_group_size = Math.pow(2, parents.size()-i-1);
                     }
                     else{
