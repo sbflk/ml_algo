@@ -290,17 +290,34 @@ public class Ex1 {
             ArrayList<String> bool_options = variable_net.get(cpt_key);
             System.out.print("AMOUNT OF BOOL OPTIONS: " + bool_options.size());
             System.out.print("\n");
-            for (int i = 0; i < bool_options.size(); i++){
-                for (int j = 0; j < cpt.size(); j++){
-                    if (Objects.equals(bool_table.get(cpt_key).get(h).get(j), bool_options.get(i))){
-                        System.out.print("ADDING: " + cpt.get(j) + " TO THE " + bool_options.get(i) + " SUM");
-                        System.out.print("\n");
+            int rows_in_eliminated = 1;
+            for (int i = 0; i < bool_table.get(cpt_key).size();i++){
+                String k = (String) bool_table.get(cpt_key).keySet().toArray()[i];
+                if (!Objects.equals(k,h)){
+                    rows_in_eliminated *= variable_net.get(k).size();
+                }
+            }
+            System.out.print("ROWS IN ELIMINATED: " +  rows_in_eliminated);
+            System.out.print("\n");
+
+
+            for (int i = 0; i < cpt.size(); i+= (cpt.size()/rows_in_eliminated)){
+                current_sum += Double.parseDouble(cpt.get(i));
+                for (int j = i; j < cpt.size(); j++){
+                    boolean should_add = true;
+                    for (int l = 0; l < bool_table.get(cpt_key).size(); l++){
+                        if (!Objects.equals(bool_table.get(cpt_key).get(bool_table.get(cpt_key).keySet().toArray()[l]).get(j), bool_table.get(cpt_key).get(bool_table.get(cpt_key).keySet().toArray()[l]).get(i))){
+                            should_add = false;
+                        }
+                    }
+                    if (should_add){
                         current_sum += Double.parseDouble(cpt.get(j));
                     }
                 }
                 eliminated_cpt.add(String.valueOf(current_sum));
                 current_sum = 0;
             }
+
 
             System.out.print("ELIMINATED CPT: " + eliminated_cpt);
             System.out.print("\n");
@@ -411,7 +428,7 @@ public class Ex1 {
                     var_bool_table.put(parents.get(i), parent_bool_values);
                 }
             }
-            if (!evidence.containsKey(var.getKey())){
+            if (!evidence.containsKey(var.getKey()) && !hidden_done.contains(var.getKey())){
                 ArrayList<String> var_bool_values = new ArrayList<>();
                 ArrayList<String> bool_options = new ArrayList<>(variable_net.get(var.getKey()));
                 String current_bool_value = bool_options.get(0);
