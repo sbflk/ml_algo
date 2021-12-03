@@ -287,19 +287,20 @@ public class Ex1 {
             int parents_number = bool_table.get(cpt_key).size()-1;
             eliminated_cpt = new ArrayList<>();
             double current_sum = 0;
-            int bool_options = variable_net.get(cpt_key).size();
-            System.out.print("AMOUNT OF BOOL OPTIONS: " + bool_options);
+            ArrayList<String> bool_options = variable_net.get(cpt_key);
+            System.out.print("AMOUNT OF BOOL OPTIONS: " + bool_options.size());
             System.out.print("\n");
-            for (int i = 0; i < cpt.size(); i++){
-                if (i != 0 && i % bool_options == 0){
-                    System.out.print("IN THE IF WITH I = " + i);
-                    System.out.print("\n");
-                    eliminated_cpt.add(String.valueOf(current_sum));
-                    current_sum = 0;
+            for (int i = 0; i < bool_options.size(); i++){
+                for (int j = 0; j < cpt.size(); j++){
+                    if (Objects.equals(bool_table.get(cpt_key).get(h).get(j), bool_options.get(i))){
+                        System.out.print("ADDING: " + cpt.get(j) + " TO THE " + bool_options.get(i) + " SUM");
+                        System.out.print("\n");
+                        current_sum += Double.parseDouble(cpt.get(j));
+                    }
                 }
-                current_sum += Double.parseDouble(cpt.get(i));
+                eliminated_cpt.add(String.valueOf(current_sum));
+                current_sum = 0;
             }
-            eliminated_cpt.add(String.valueOf(current_sum));
 
             System.out.print("ELIMINATED CPT: " + eliminated_cpt);
             System.out.print("\n");
