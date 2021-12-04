@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -300,31 +301,41 @@ public class Ex1 {
             System.out.print("ROWS IN ELIMINATED: " +  rows_in_eliminated);
             System.out.print("\n");
 
+            ArrayList<String> marginalized = new ArrayList<>();
 
-
-
-            for (int i = 0; i < cpt.size(); i+= (cpt.size()/rows_in_eliminated)){
-                //current_sum += Double.parseDouble(cpt.get(i));
-                for (int j = 0; j < cpt.size(); j++){
-                    boolean should_add = true;
-                    for (int l = 0; l < bool_table.get(cpt_key).size(); l++){
-                        String key = (String) bool_table.get(cpt_key).keySet().toArray()[l];
-                        if (!Objects.equals(bool_table.get(cpt_key).get(key).get(j), bool_table.get(cpt_key).get(key).get(i)) && !Objects.equals(key, h)){
-                            should_add = false;
-                        }
-                    }
-                    if (should_add){
-                        System.out.print("ADDING: " + cpt.get(j) + " TO SUM:" + i);
-                        System.out.print("\n");
-                        current_sum += Double.parseDouble(cpt.get(j));
-                        System.out.print("CURRENT SUM: " + current_sum);
-                        System.out.print("\n");
+            for (int i = 0; i < cpt.size(); i++){
+                current_sum = 0;
+                boolean new_group = false;
+                String group = "";
+                for (int j = 0; j < bool_table.get(cpt_key).size();j++){
+                    String key = (String) bool_table.get(cpt_key).keySet().toArray()[j];
+                    if (!Objects.equals(key, h)){
+                        group = group.concat(bool_table.get(cpt_key).get(key).get(i));
                     }
                 }
-                eliminated_cpt.add(String.valueOf(current_sum));
-                current_sum = 0;
+                if (!marginalized.contains(group)){
+                    for (int j = 0; j < cpt.size(); j++){
+                        boolean should_add = true;
+                        for (int l = 0; l < bool_table.get(cpt_key).size(); l++){
+                            String key1 = (String) bool_table.get(cpt_key).keySet().toArray()[l];
+                            if (!Objects.equals(bool_table.get(cpt_key).get(key1).get(j), bool_table.get(cpt_key).get(key1).get(i)) && !Objects.equals(key1, h)){
+                                should_add = false;
+                            }
+                        }
+                        if (should_add){
+                            System.out.print("ADDING: " + cpt.get(j) + " TO SUM:" + i);
+                            System.out.print("\n");
+                            current_sum += Double.parseDouble(cpt.get(j));
+                            System.out.print("CURRENT SUM: " + current_sum);
+                            System.out.print("\n");
+                        }
+                    }
+                }
+                marginalized.add(group);
+                if (current_sum != 0){
+                    eliminated_cpt.add(String.valueOf(current_sum));
+                }
             }
-
 
             System.out.print("ELIMINATED CPT: " + eliminated_cpt);
             System.out.print("\n");
@@ -363,6 +374,20 @@ public class Ex1 {
         ArrayList<String> final_factor = new ArrayList<>(join(factors.get(query.split("=")[0]),eliminated_cpt,bool_table, query.split("=")[0], cpt_key));
         // normalize
         System.out.print("FINAL FACTOR: " + final_factor);
+        System.out.print("\n");
+
+        double sum = 0;
+        //DecimalFormat df = new DecimalFormat("#");
+        //df.setMaximumFractionDigits(8);
+        for (String f: final_factor){
+            sum += Double.parseDouble(f);
+        }
+        for (int i = 0; i< final_factor.size(); i++){
+            final_factor.set(i, (String.valueOf(Double.parseDouble(final_factor.get(i))/sum)));
+        }
+        String bool_value = query.split("=")[1];
+        String q_var = query.split("=")[0];
+        System.out.print("FINAL ANSWER: " + final_factor.get(variable_net.get(q_var).indexOf(bool_value)));
         System.out.print("\n");
 
         return 1;
