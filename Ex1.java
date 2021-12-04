@@ -7,10 +7,7 @@ import org.xml.sax.SAXException;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -18,7 +15,10 @@ import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
 public class Ex1 {
+    public static int add_cnt;
+    public static int multiply_cnt;
     public static void main(String[] args) {
         String qs = "";
         try {
@@ -26,7 +26,6 @@ public class Ex1 {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.print(qs);
         String[] lines = qs.split("\r");
         String net = lines[0];
 
@@ -40,6 +39,7 @@ public class Ex1 {
             HashMap<String,ArrayList<String>> variables = new HashMap<>();
             HashMap<String,ArrayList<String>> definitions = new HashMap<>();
 
+            //create hashmaps of the variable outcomes and the cpts
             NodeList vars = doc.getElementsByTagName("VARIABLE");
             NodeList defs = doc.getElementsByTagName("DEFINITION");
 
@@ -47,25 +47,31 @@ public class Ex1 {
             definitions = turn_to_hash(defs, "FOR");
 
 
+            DecimalFormat df = new DecimalFormat("#.#####");
 
+            // main loop to write to output file
+            PrintWriter writer = new PrintWriter("output.txt", "UTF-8");
+            String line = "";
             for(int i = 1; i < lines.length; i++){
                 if (lines[i].charAt(1) == 'P'){
-                    System.out.print(lines[i]);
-                    System.out.print("\n");
                     String[] h = lines[i].split(" ")[1].split("-");
                     String query = lines[i].split("\\|")[0].split("\\(")[1];
                     String[] e = lines[i].split("\\|")[1].split("\\)")[0].split(",");
                     ArrayList<String> evidence = new ArrayList<>(Arrays.asList(e));
                     ArrayList<String> hidden = new ArrayList<>(Arrays.asList(h));
-                    VariableElimination(variables,definitions,evidence,query,hidden);
+                    double ans =  VariableElimination(variables,definitions,evidence,query,hidden);
+                    line = df.format(ans) +"," + add_cnt + "," + multiply_cnt;
+                    add_cnt = 0;
+                    multiply_cnt = 0;
                 }
                 else{
                     boolean ans = BayesBall(definitions,lines[i]);
-                    if (ans){System.out.print("yes");}
-                    else{System.out.print("no");}
-                    System.out.print("\n");
+                    if (ans){line = "yes";}
+                    else{line = "no";}
                 }
+                writer.println(line);
             }
+            writer.close();
         } catch (ParserConfigurationException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -99,32 +105,33 @@ public class Ex1 {
     }
 
     public static boolean BayesBallAlgo(HashMap<String,ArrayList<String>> net,ArrayList<String> evidence, String start, String finish){
+        // bayesball using bfs search algorithm with added ifs to match the way you are able to move in bayesball.works.
         ArrayList<String> explored = new ArrayList<>();
         Queue<String> q = new LinkedList<>();
         Queue<String> states = new LinkedList<>();
         q.add(start);
         states.add("all");
         while (!q.isEmpty()){
-           String v = q.remove();
-           String state = states.remove();
-           explored.add(v);
-           if (Objects.equals(v, finish)){
-               return false;
-           }
-           for (Map.Entry var: net.entrySet()){
-               if (net.get(var.getKey()).contains(v) && !evidence.contains(v) && !Objects.equals(state, "parent")){
-                   if (!q.contains(var.getKey()) && !explored.contains(var.getKey())){
-                       q.add((String) var.getKey());
-                       if (evidence.contains((String) var.getKey())){
-                           states.add("parent");
-                       }
-                       else {
-                           states.add("child");
-                       }
-                   }
-               }
+            String v = q.remove();
+            String state = states.remove();
+            explored.add(v);
+            if (Objects.equals(v, finish)){
+                return false;
+            }
+            for (Map.Entry var: net.entrySet()){
+                if (net.get(var.getKey()).contains(v) && !evidence.contains(v) && !Objects.equals(state, "parent")){
+                    if (!q.contains(var.getKey()) && !explored.contains(var.getKey())){
+                        q.add((String) var.getKey());
+                        if (evidence.contains((String) var.getKey())){
+                            states.add("parent");
+                        }
+                        else {
+                            states.add("child");
+                        }
+                    }
+                }
 
-           }
+            }
             if (!Objects.equals(state, "child")){
                 for(int i = 0; i < net.get(v).size(); i++){
                     if (net.containsKey(net.get(v).get(i)) && !evidence.contains(net.get(v).get(i)) && Collections.frequency(explored,net.get(v).get(i)) != 2){
@@ -139,27 +146,28 @@ public class Ex1 {
     }
 
 
-    public static float VariableElimination(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net1,ArrayList<String> e, String query, ArrayList<String> hidden){
-        HashMap<String,ArrayList<String>> net = new HashMap<>(copy(net1));
-        HashMap<String,ArrayList<String>> factors = new HashMap<>();
+    public static double VariableElimination(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net1,ArrayList<String> e, String query, ArrayList<String> hidden){
+        HashMap<String,ArrayList<String>> net = new HashMap<>(copy(net1));// the main net
+        HashMap<String,ArrayList<String>> factors = new HashMap<>();//cpts after evidence changes
         HashMap<String,String> evidence = new HashMap<>();
         ArrayList<String> hidden_done = new ArrayList<>();
-        ArrayList<String> eliminated_cpt = null;
+        ArrayList<String> eliminated_cpt = null;// cpt after elimination and joining
+        ArrayList<String> one_value_cpts = new ArrayList<>();
         String cpt_key = "";
-        HashMap<String,HashMap<String,ArrayList<String>>> bool_table = null;
-        for(String s : e){
-            String[] splited = s.split("=");
-            evidence.put(splited[0],splited[1]);
+        HashMap<String,HashMap<String,ArrayList<String>>> bool_table = null;//hashmap to know the vars bool values for each num in every cpt
+        if (e.size() > 1){
+            for(String s : e){
+                String[] splited = s.split("=");
+                evidence.put(splited[0],splited[1]);
+            }
         }
-        System.out.print("STARTING NET: " + net);
-        System.out.print("\n");
+        //removing values that are known from evidence
+
         for (Map.Entry var:net.entrySet()){
-            System.out.print("CURRENT KEY: " + var.getKey());
-            System.out.print("\n");
             ArrayList<String> cpt = net.get(var.getKey());
             cpt = new ArrayList<>(Arrays.asList(cpt.get(cpt.size() - 1).split(" ")));
             ArrayList<String> bool_options = variable_net.get(var.getKey());
-            for (int i = 0; i < net.get(var.getKey()).size()-1; i ++){
+            for (int i = 0; i < net.get(var.getKey()).size()-1; i ++){//checking parent vars who are evident
                 String parent = net.get(var.getKey()).get(i);
                 if (evidence.containsKey(parent)){
                     String parent_bool_value = evidence.get(parent);
@@ -178,7 +186,7 @@ public class Ex1 {
                     }
                 }
             }
-            if (evidence.containsKey(var.getKey())){
+            if (evidence.containsKey(var.getKey())){// checking vars who are evident
                 String var_bool_value = evidence.get(var.getKey());
                 int cpt_value_start = bool_options.indexOf(var_bool_value);
                 for (int j = cpt_value_start; j < cpt.size(); j++){
@@ -196,18 +204,16 @@ public class Ex1 {
             if (new_cpt.size() > 1){
                 factors.put((String) var.getKey(),new_cpt);
             }
+            else {
+                one_value_cpts.add((String) var.getKey());
+            }
         }
-        System.out.print("FACTORS: " + factors);
-        System.out.print("\n");
+        net.keySet().removeAll(one_value_cpts);
+
 
         // dealing with hidden variables
 
-        System.out.print("DEALING WITH HIDDEN");
-        System.out.print("\n");
-
         for (String h : hidden){
-            System.out.print("DEALING WITH HIDDEN : " + h);
-            System.out.print("\n");
             bool_table = new HashMap<>(create_bool_table(variable_net,net,evidence,hidden_done));
             ArrayList<String> h_factor = factors.get(h);
             ArrayList<ArrayList<String>> factor_by_size = new ArrayList<>();//factors need to be joined from smallest to biggest
@@ -219,8 +225,8 @@ public class Ex1 {
                     ArrayList<String> var_factor = factors.get(var.getKey());
                     Boolean added = false;
                     int size = factor_by_size.size();
-                    for (int i = 0; i < size;i++){
-                        if (factor_by_size.get(i).size() == var_factor.size() && !added){
+                    for (int i = 0; i < size;i++){//checking when current size of factor is smaller than one already in the array than putting him ine position before it
+                        if (factor_by_size.get(i).size() == var_factor.size() && !added){//compering ascii values if same size
                             int var_sum = 0;
                             ArrayList<String> keys = new ArrayList<>(bool_table.get(var.getKey()).keySet());
                             for (int j = 0; j < keys.size(); j++){
@@ -255,155 +261,99 @@ public class Ex1 {
                 }
             }
 
-            System.out.print("FACTORS THAT INCLUDE HIDDEN: " + factor_by_size);
-            System.out.print("\n");
 
 
             // joining factors
-            ArrayList<String> cpt = new ArrayList<>(factor_by_size).get(0);
-            factor_by_size.remove(0);
-            cpt_key = keys_inside.remove(0);
-            System.out.print("CPT KEY: " + cpt_key);
-            System.out.print("\n");
-            if (factor_by_size.size() > 0){
-                while (factor_by_size.size() != 0){
-                    ArrayList<String> cpt1 = new ArrayList<>(factor_by_size).get(0);
-                    factor_by_size.remove(0);
-                    String cpt1_key = keys_inside.remove(0);
-                    System.out.print("CPT1 KEY: " + cpt1_key);
-                    System.out.print("\n");
-                    cpt = new ArrayList<>(join(cpt,cpt1,bool_table,cpt_key,cpt1_key));
-                    cpt_key = cpt1_key;
-                }
-            }
-
-            // eliminate
-
-            System.out.print("CPT AFTER ALL JOINING: " + cpt);
-            System.out.print("\n");
-            System.out.print("CPT KEY: " + cpt_key);
-            System.out.print("\n");
-            System.out.print("CPT BOOL TABLE: " + bool_table.get(cpt_key));
-            System.out.print("\n");
-            int parents_number = bool_table.get(cpt_key).size()-1;
-            eliminated_cpt = new ArrayList<>();
-            double current_sum = 0;
-            ArrayList<String> bool_options = variable_net.get(cpt_key);
-            System.out.print("AMOUNT OF BOOL OPTIONS: " + bool_options.size());
-            System.out.print("\n");
-            int rows_in_eliminated = 1;
-            for (int i = 0; i < bool_table.get(cpt_key).size();i++){
-                String k = (String) bool_table.get(cpt_key).keySet().toArray()[i];
-                if (!Objects.equals(k,h)){
-                    rows_in_eliminated *= variable_net.get(k).size();
-                }
-            }
-            System.out.print("ROWS IN ELIMINATED: " +  rows_in_eliminated);
-            System.out.print("\n");
-
-            ArrayList<String> marginalized = new ArrayList<>();
-
-            for (int i = 0; i < cpt.size(); i++){
-                current_sum = 0;
-                boolean new_group = false;
-                String group = "";
-                for (int j = 0; j < bool_table.get(cpt_key).size();j++){
-                    String key = (String) bool_table.get(cpt_key).keySet().toArray()[j];
-                    if (!Objects.equals(key, h)){
-                        group = group.concat(bool_table.get(cpt_key).get(key).get(i));
+            if (factor_by_size.size() > 1){
+                ArrayList<String> cpt = new ArrayList<>(factor_by_size).get(0);
+                factor_by_size.remove(0);
+                cpt_key = keys_inside.remove(0);
+                if (factor_by_size.size() > 0){
+                    while (factor_by_size.size() != 0){
+                        ArrayList<String> cpt1 = new ArrayList<>(factor_by_size).get(0);
+                        factor_by_size.remove(0);
+                        String cpt1_key = keys_inside.remove(0);
+                        cpt = new ArrayList<>(join(cpt,cpt1,bool_table,cpt_key,cpt1_key));
+                        cpt_key = cpt1_key;
                     }
                 }
-                if (!marginalized.contains(group)){
-                    for (int j = 0; j < cpt.size(); j++){
-                        boolean should_add = true;
-                        for (int l = 0; l < bool_table.get(cpt_key).size(); l++){
-                            String key1 = (String) bool_table.get(cpt_key).keySet().toArray()[l];
-                            if (!Objects.equals(bool_table.get(cpt_key).get(key1).get(j), bool_table.get(cpt_key).get(key1).get(i)) && !Objects.equals(key1, h)){
-                                should_add = false;
+
+                // eliminate
+
+                eliminated_cpt = new ArrayList<>();
+                double current_sum = 0;
+
+
+                ArrayList<String> marginalized = new ArrayList<>();
+
+                for (int i = 0; i < cpt.size(); i++){//how many combinations for bool values will be the amount of rows in the eliminated cpt
+                    current_sum = 0;
+                    String group = "";//for example: TF or FF or TFV1
+                    for (int j = 0; j < bool_table.get(cpt_key).size();j++){
+                        String key = (String) bool_table.get(cpt_key).keySet().toArray()[j];
+                        if (!Objects.equals(key, h)){
+                            group = group.concat(bool_table.get(cpt_key).get(key).get(i));
+                        }
+                    }
+                    if (!marginalized.contains(group)){//if values of this group haven't been summed yet, sum them
+                        for (int j = 0; j < cpt.size(); j++){
+                            boolean should_add = true;
+                            for (int l = 0; l < bool_table.get(cpt_key).size(); l++){
+                                String key1 = (String) bool_table.get(cpt_key).keySet().toArray()[l];
+                                if (!Objects.equals(bool_table.get(cpt_key).get(key1).get(j), bool_table.get(cpt_key).get(key1).get(i)) && !Objects.equals(key1, h)){
+                                    should_add = false;
+                                }
+                            }
+                            if (should_add){
+                                current_sum += Double.parseDouble(cpt.get(j));
+                                add_cnt++;
                             }
                         }
-                        if (should_add){
-                            System.out.print("ADDING: " + cpt.get(j) + " TO SUM:" + i);
-                            System.out.print("\n");
-                            current_sum += Double.parseDouble(cpt.get(j));
-                            System.out.print("CURRENT SUM: " + current_sum);
-                            System.out.print("\n");
-                        }
+                    }
+                    marginalized.add(group);
+                    if (current_sum != 0){
+                        eliminated_cpt.add(String.valueOf(current_sum));
                     }
                 }
-                marginalized.add(group);
-                if (current_sum != 0){
-                    eliminated_cpt.add(String.valueOf(current_sum));
-                }
-            }
 
-            System.out.print("ELIMINATED CPT: " + eliminated_cpt);
-            System.out.print("\n");
-            String eliminated_cpt_string = "";
-            for (String s: eliminated_cpt){
-                eliminated_cpt_string = eliminated_cpt_string.concat(s + " ");
-            }
-            eliminated_cpt_string = eliminated_cpt_string.substring(0,eliminated_cpt_string.length()-1);
-            System.out.print("NET: " + net);
-            System.out.print("\n");
-            System.out.print("ELIMINATED CPT String: " + eliminated_cpt_string);
-            System.out.print("\n");
-            net.get(h).set(net.get(h).size()-1, eliminated_cpt_string);
-            factors.put(h,eliminated_cpt);
-            ArrayList<String> one_val_factors = new ArrayList<>();
-            for (Map.Entry k: factors.entrySet()){
-                if (factors.get(k.getKey()).size() == 1){
-                    System.out.print("REMOVING FACTOR: " + factors.get(k.getKey()));
-                    System.out.print("\n");
-                    one_val_factors.add((String) k.getKey());
+                String eliminated_cpt_string = "";
+                for (String s: eliminated_cpt){
+                    eliminated_cpt_string = eliminated_cpt_string.concat(s + " ");
                 }
+                eliminated_cpt_string = eliminated_cpt_string.substring(0,eliminated_cpt_string.length()-1);
+                net.get(h).set(net.get(h).size()-1, eliminated_cpt_string);
+                factors.put(h,eliminated_cpt);
+                ArrayList<String> one_val_factors = new ArrayList<>();
+                for (Map.Entry k: factors.entrySet()){
+                    if (factors.get(k.getKey()).size() == 1){
+                        one_val_factors.add((String) k.getKey());
+                    }
+                }
+                factors.keySet().removeAll(one_val_factors);
+                net.keySet().removeAll(one_val_factors);
+                hidden.removeAll(one_val_factors);
+                hidden_done.add(h);
+                net.values().removeAll(Collections.singleton(null));
             }
-            System.out.print("ONE VAL FACTORS " + one_val_factors);
-            System.out.print("\n");
-            factors.keySet().removeAll(one_val_factors);
-            net.keySet().removeAll(one_val_factors);
-            hidden.removeAll(one_val_factors);
-            System.out.print("NET AFTER: " + net);
-            System.out.print("\n");
-            System.out.print("FACTORS AFTER: " + factors);
-            System.out.print("\n");
-            hidden_done.add(h);
         }
-        System.out.print("QUERY: " + query);
-        System.out.print("\n");
         ArrayList<String> final_factor = new ArrayList<>(join(factors.get(query.split("=")[0]),eliminated_cpt,bool_table, query.split("=")[0], cpt_key));
         // normalize
-        System.out.print("FINAL FACTOR: " + final_factor);
-        System.out.print("\n");
-
         double sum = 0;
-        //DecimalFormat df = new DecimalFormat("#");
-        //df.setMaximumFractionDigits(8);
         for (String f: final_factor){
             sum += Double.parseDouble(f);
+            add_cnt++;
         }
         for (int i = 0; i< final_factor.size(); i++){
             final_factor.set(i, (String.valueOf(Double.parseDouble(final_factor.get(i))/sum)));
         }
         String bool_value = query.split("=")[1];
         String q_var = query.split("=")[0];
-        System.out.print("FINAL ANSWER: " + final_factor.get(variable_net.get(q_var).indexOf(bool_value)));
-        System.out.print("\n");
-
-        return 1;
+        return  Double.parseDouble(final_factor.get(variable_net.get(q_var).indexOf(bool_value)));
     }
 
     public static ArrayList<String> join(ArrayList<String> cpt, ArrayList<String> cpt1, HashMap<String,HashMap<String,ArrayList<String>>> bool_table, String cpt_key, String cpt1_key){
-        System.out.print("CPT: " + cpt);
-        System.out.print("\n");
-        System.out.print("CPT1: " + cpt1);
-        System.out.print("\n");
-        System.out.print("BOOL TABLE CPT: " + bool_table.get(cpt_key));
-        System.out.print("\n");
-        System.out.print("BOOL TABLE CPT1: " + bool_table.get(cpt1_key));
-        System.out.print("\n");
+        //using the bool table to know what value multiplies with what
         ArrayList<String> cpt_ret = new ArrayList<>(cpt1);
-
         ArrayList<String> cpt_keys = new ArrayList<>(bool_table.get(cpt_key).keySet());
         ArrayList<String> cpt1_keys = new ArrayList<>(bool_table.get(cpt1_key).keySet());
         ArrayList<String> shared = new ArrayList<>(cpt_keys.stream().filter(cpt1_keys::contains).collect(Collectors.toList()));
@@ -416,9 +366,8 @@ public class Ex1 {
                     }
                 }
                 if(should_join){
-                    System.out.print("MULTIPLYING: " + cpt1.get(j) + " AND: " + cpt.get(i));
-                    System.out.print("\n");
                     cpt_ret.set(j,String.valueOf(Double.parseDouble(cpt1.get(j)) * Double.parseDouble(cpt.get(i))));
+                    multiply_cnt++;
                 }
             }
         }
@@ -427,11 +376,8 @@ public class Ex1 {
 
 
     public static HashMap<String,HashMap<String,ArrayList<String>>> create_bool_table(HashMap<String,ArrayList<String>> variable_net,HashMap<String,ArrayList<String>> net,HashMap<String,String> evidence, ArrayList<String> hidden_done){
+        //creating the table using each variable's outcomes
         HashMap<String,HashMap<String,ArrayList<String>>> bool_table = new HashMap<>();
-        //System.out.print("VARIABLE NET: " + variable_net);
-        //System.out.print("\n");
-        //System.out.print("NET: " + net);
-        //System.out.print("\n");
         for (Map.Entry var: net.entrySet()){
             HashMap<String,ArrayList<String>> var_bool_table = new HashMap<>();
             ArrayList<String> parents = new ArrayList<>(net.get(var.getKey()));
@@ -447,8 +393,6 @@ public class Ex1 {
                     else{
                         bool_group_size = Math.pow(2, parents.size()-i);
                     }
-                    //System.out.print("VARIABLE NET FOR PARENT: " + parents.get(i) + " " + variable_net.get(parents.get(i)));
-                    //System.out.print("\n");
                     ArrayList<String> bool_options = new ArrayList<>(variable_net.get(parents.get(i)));
                     String current_bool_value = bool_options.get(0);
                     for(int j = 0; j < table_size; j++){
@@ -505,6 +449,7 @@ public class Ex1 {
 
 
     public static HashMap<String,ArrayList<String>> copy(HashMap<String,ArrayList<String>> m){
+        //deep copy
         HashMap<String,ArrayList<String>> ret = new HashMap<>();
 
         for(Map.Entry<String,ArrayList<String>> var:m.entrySet()){
