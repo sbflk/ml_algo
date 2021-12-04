@@ -301,17 +301,24 @@ public class Ex1 {
             System.out.print("\n");
 
 
+
+
             for (int i = 0; i < cpt.size(); i+= (cpt.size()/rows_in_eliminated)){
-                current_sum += Double.parseDouble(cpt.get(i));
-                for (int j = i; j < cpt.size(); j++){
+                //current_sum += Double.parseDouble(cpt.get(i));
+                for (int j = 0; j < cpt.size(); j++){
                     boolean should_add = true;
                     for (int l = 0; l < bool_table.get(cpt_key).size(); l++){
-                        if (!Objects.equals(bool_table.get(cpt_key).get(bool_table.get(cpt_key).keySet().toArray()[l]).get(j), bool_table.get(cpt_key).get(bool_table.get(cpt_key).keySet().toArray()[l]).get(i))){
+                        String key = (String) bool_table.get(cpt_key).keySet().toArray()[l];
+                        if (!Objects.equals(bool_table.get(cpt_key).get(key).get(j), bool_table.get(cpt_key).get(key).get(i)) && !Objects.equals(key, h)){
                             should_add = false;
                         }
                     }
                     if (should_add){
+                        System.out.print("ADDING: " + cpt.get(j) + " TO SUM:" + i);
+                        System.out.print("\n");
                         current_sum += Double.parseDouble(cpt.get(j));
+                        System.out.print("CURRENT SUM: " + current_sum);
+                        System.out.print("\n");
                     }
                 }
                 eliminated_cpt.add(String.valueOf(current_sum));
